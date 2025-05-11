@@ -2,12 +2,14 @@ package subpub
 
 import (
 	"context"
+	"go.uber.org/goleak"
 	"sync"
 	"testing"
 	"time"
 )
 
 func TestFIFO(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	bus := NewSubPub()
 	sub, _ := bus.Subscribe("test", func(msg interface{}) {})
 
@@ -26,7 +28,7 @@ func TestFIFO(t *testing.T) {
 	for i := 0; i < count; i++ {
 		bus.Publish("test", i)
 	}
-	// дадим обработчикам время
+
 	time.Sleep(100 * time.Millisecond)
 
 	for i, v := range res {
@@ -35,9 +37,12 @@ func TestFIFO(t *testing.T) {
 			break
 		}
 	}
+	ctx, _ := context.WithCancel(context.Background())
+	bus.Close(ctx)
 }
 
 func TestMultipleSubscribers(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	bus := NewSubPub()
 
 	var wg sync.WaitGroup
@@ -69,9 +74,12 @@ func TestMultipleSubscribers(t *testing.T) {
 			}
 		}
 	}
+	ctx, _ := context.WithCancel(context.Background())
+	bus.Close(ctx)
 }
 
-func TestUnsubscribe(t *testing.T) {
+func TestUnsubscribe1(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	bus := NewSubPub()
 
 	ch := make(chan string, 4)
@@ -93,9 +101,52 @@ func TestUnsubscribe(t *testing.T) {
 	if len(col) != 1 || col[0] != "a" {
 		t.Errorf("unexpected messages after unsubscribe: %v", col)
 	}
+	ctx, _ := context.WithCancel(context.Background())
+	bus.Close(ctx)
+}
+
+func TestUnsubscribe2(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	bus := NewSubPub()
+
+	ch1 := make(chan string, 4)
+	ch2 := make(chan string, 4)
+	sub1, _ := bus.Subscribe("u", func(msg interface{}) {
+		ch1 <- msg.(string)
+	})
+	sub2, _ := bus.Subscribe("u", func(msg interface{}) {
+		ch2 <- msg.(string)
+	})
+	defer sub2.Unsubscribe()
+
+	bus.Publish("u", "a")
+	time.Sleep(time.Millisecond)
+	sub1.Unsubscribe()
+	bus.Publish("u", "b")
+	time.Sleep(time.Millisecond)
+
+	close(ch1)
+	close(ch2)
+	col1 := make([]string, 0)
+	for v := range ch1 {
+		col1 = append(col1, v)
+	}
+	if len(col1) != 1 || col1[0] != "a" {
+		t.Errorf("unexpected messages after unsubscribe: %v", col1)
+	}
+	col2 := make([]string, 0)
+	for v := range ch2 {
+		col2 = append(col2, v)
+	}
+	if len(col2) != 2 || col2[0] != "a" || col2[1] != "b" {
+		t.Errorf("unexpected messages after unsubscribe: %v", col2)
+	}
+	ctx, _ := context.WithCancel(context.Background())
+	bus.Close(ctx)
 }
 
 func TestCloseContext(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	bus := NewSubPub()
 
 	ctx, cancel := context.WithCancel(context.Background())

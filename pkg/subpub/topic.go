@@ -64,12 +64,11 @@ func (t *topic) dispatch() {
 	}
 
 	// после закрытия inbox — закрываем все очереди
-	t.mu.RLock()
 	for _, sub := range t.subs {
-		close(sub.queue)
+		sub.Unsubscribe()
+		// close(sub.queue)
 		// close(sub.unsub) // ЭТО Я ДОБАВИЛ
 	}
-	t.mu.RUnlock()
 }
 
 // addSubscriber добавляет подписчика в тему.
