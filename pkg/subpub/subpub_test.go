@@ -2,7 +2,6 @@ package subpub
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -78,14 +77,13 @@ func TestUnsubscribe(t *testing.T) {
 	ch := make(chan string, 4)
 	sub, _ := bus.Subscribe("u", func(msg interface{}) {
 		ch <- msg.(string)
-		fmt.Println("multihandler ", msg.(string))
 	})
 
 	bus.Publish("u", "a")
-	// time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond)
 	sub.Unsubscribe()
 	bus.Publish("u", "b")
-	// time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond)
 
 	close(ch)
 	col := make([]string, 0)
