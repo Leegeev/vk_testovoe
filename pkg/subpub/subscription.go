@@ -2,36 +2,41 @@ package subpub
 
 import "sync"
 
-type subscription struct {
-	id   uint64
-	top  *topic
-	user MessageHandler // оригинальный MessageHandler
+const defaultSubQueue = 64
 
-	queue  chan interface{} // персональная буферизованная очередь
-	closed chan struct{}    // сигнал для dispatcher и goroutine-handler
-	once   sync.Once        // гарантирует однократность Unsubscribe
+// subscription реализует Subscription.
+type subscription struct {
+	id    uint64
+	topic *topic
+	user  MessageHandler
+	queue chan interface{}
+	unsub chan struct{}
+	once  sync.Once
 }
 
 func newSubscription(cb MessageHandler) *subscription {
 	s := &subscription{
-		user:   cb,
-		queue:  make(chan interface{}, defaultSubQueue),
-		closed: make(chan struct{}),
+		user:  cb,
+		queue: make(chan interface{}, defaultSubQueue),
+		unsub: make(chan struct{}),
 	}
-
+	// горутина-обработчик
 	go func() {
 		for msg := range s.queue {
 			s.user(msg)
 		}
 	}()
-
 	return s
 }
 
+// Unsubscribe удаляет подписчика из темы и очищает ресурсы.
 func (s *subscription) Unsubscribe() {
 	s.once.Do(func() {
-		close(s.closed)
-		s.top.removeSubscriber(s.id)
+		// сигнал для dispatcher не писать в closed queue
+		close(s.unsub)
+		// удаляем из темы
+		s.topic.removeSubscriber(s.id)
+		// закрываем очередь, чтобы завершилась goroutine-handler
 		close(s.queue)
 	})
 }
