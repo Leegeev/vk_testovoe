@@ -22,10 +22,7 @@ func NewServer() *grpcPubSubServer {
 }
 
 // Publish — классический Unary RPC.
-func (s *grpcPubSubServer) Publish(
-	ctx context.Context,
-	req *pb.PublishRequest,
-) (*emptypb.Empty, error) {
+func (s *grpcPubSubServer) Publish(ctx context.Context, req *pb.PublishRequest) (*emptypb.Empty, error) {
 	// отправляем сообщение в шину
 	if err := s.bus.Publish(req.Key, req.Data); err != nil {
 		return nil, err
