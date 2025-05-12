@@ -8,6 +8,8 @@ import (
 
 	pb "github.com/Leegeev/vk_testovoe/pkg/api"
 	_ "google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // runPublish публикует одно сообщение и возвращается.
@@ -17,8 +19,24 @@ func runPublish(client pb.PubSubClient, key, msg string) {
 		Data: msg,
 	})
 	if err != nil {
-		log.Fatalf("Publish error: %v", err)
+		st, ok := status.FromError(err)
+		if !ok {
+			log.Fatalf("non-gRPC error: %v", err)
+		}
+
+		switch st.Code() {
+		case codes.NotFound:
+			// ErrSubjectNotFound
+			log.Fatalf("topic not found: %s", st.Message())
+		case codes.Unavailable:
+			// ErrClosed или проблемы с сетью
+			log.Fatalf("service unavailable: %s", st.Message())
+		default:
+			log.Fatalf("publish error [%s]: %s", st.Code(), st.Message())
+		}
+		return
 	}
+
 	fmt.Printf("-> published %q to %q\n", msg, key)
 }
 
@@ -26,7 +44,18 @@ func runPublish(client pb.PubSubClient, key, msg string) {
 func runSubscribe(client pb.PubSubClient, key string) {
 	stream, err := client.Subscribe(context.Background(), &pb.SubscribeRequest{Key: key})
 	if err != nil {
-		log.Fatalf("Subscribe error: %v", err)
+		st, ok := status.FromError(err)
+		if !ok {
+			log.Fatalf("non-gRPC error on Subscribe: %v", err)
+		}
+		switch st.Code() {
+		case codes.InvalidArgument:
+			log.Fatalf("invalid argument: %s", st.Message())
+		case codes.Unavailable:
+			log.Fatalf("service unavailable: %s", st.Message())
+		default:
+			log.Fatalf("Subscribe error [%s]: %s", st.Code(), st.Message())
+		}
 	}
 	for {
 		evt, err := stream.Recv()

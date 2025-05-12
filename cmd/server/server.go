@@ -3,8 +3,13 @@ package main
 
 import (
 	"context"
+	"errors"
+	"log"
+
 	pb "github.com/Leegeev/vk_testovoe/pkg/api" // сгенерированный из pubsub.proto
 	"github.com/Leegeev/vk_testovoe/pkg/subpub"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -23,29 +28,43 @@ func NewServer() *grpcPubSubServer {
 
 // Publish — классический Unary RPC.
 func (s *grpcPubSubServer) Publish(ctx context.Context, req *pb.PublishRequest) (*emptypb.Empty, error) {
-	// отправляем сообщение в шину
 	if err := s.bus.Publish(req.Key, req.Data); err != nil {
-		return nil, err
+		// 2) тема не найдена → NotFound
+		if errors.Is(err, subpub.ErrTopictNotFound) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		// 3) шина уже закрыта → Unavailable
+		if errors.Is(err, subpub.ErrClosed) {
+			return nil, status.Error(codes.Unavailable, err.Error())
+		}
+		// 4) всё остальное → Internal
+		return nil, status.Errorf(codes.Internal, "publish failed: %v", err)
 	}
+	log.Printf("Published \"%v\" in topic: %v", req.Data, req.Key)
 	return &emptypb.Empty{}, nil
 }
 
 // Subscribe — Server-stream RPC.
-func (s *grpcPubSubServer) Subscribe(
-	req *pb.SubscribeRequest,
-	stream pb.PubSub_SubscribeServer,
-) error {
+func (s *grpcPubSubServer) Subscribe(req *pb.SubscribeRequest, stream pb.PubSub_SubscribeServer) error {
 	// заводим подписку — коллбэком шлём в stream
 	sub, err := s.bus.Subscribe(req.Key, func(m interface{}) {
 		// преобразуем интерфейс в string и отправляем
 		_ = stream.Send(&pb.Event{Data: m.(string)})
 	})
+
 	if err != nil {
-		return err
+		if errors.Is(err, subpub.ErrClosed) {
+			return status.Error(codes.Unavailable, err.Error())
+		}
+		if errors.Is(err, subpub.ErrTopicNameIsEmpty) {
+			return status.Error(codes.InvalidArgument, err.Error())
+		}
+		return status.Errorf(codes.Internal, "subscription failed: %v", err)
 	}
 	defer sub.Unsubscribe()
 
 	// ждём, пока клиент не закроет stream.Context()
+	log.Printf("New sub on topic: %v", req.Key)
 	<-stream.Context().Done()
 	return stream.Context().Err()
 }

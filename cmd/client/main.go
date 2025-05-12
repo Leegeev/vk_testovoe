@@ -6,7 +6,9 @@ import (
 
 	pb "github.com/Leegeev/vk_testovoe/pkg/api"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -21,7 +23,11 @@ func main() {
 	// 1) подключаемся к серверу
 	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Dial error: %v", err)
+		log.Fatal(status.Errorf(
+			codes.Unavailable,
+			"cannot connect to gRPC server: %v",
+			err,
+		))
 	}
 	defer conn.Close()
 	client := pb.NewPubSubClient(conn)
@@ -29,15 +35,13 @@ func main() {
 	// 2) решаем, что делаем
 	switch *mode {
 	case "pub":
-		if *msg == "" {
-			log.Fatalf("для pub нужно задать -msg")
-		}
 		runPublish(client, *key, *msg)
 
 	case "sub":
 		runSubscribe(client, *key)
 
 	default:
-		log.Fatalf("неизвестный режим %q", *mode)
+		err := status.Errorf(codes.InvalidArgument, "неизвестный режим %q: используйте pub или sub", *mode)
+		log.Fatal(err)
 	}
 }

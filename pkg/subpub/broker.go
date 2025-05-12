@@ -28,7 +28,9 @@ func (b *broker) Subscribe(subject string, cb MessageHandler) (Subscription, err
 		return nil, ErrClosed
 	}
 	b.mu.RUnlock()
-
+	if subject == "" {
+		return nil, ErrTopicNameIsEmpty
+	}
 	t := b.getOrCreateTopic(subject)
 	sub := newSubscription(cb)
 	t.addSubscriber(sub)
@@ -47,7 +49,7 @@ func (b *broker) Publish(subject string, msg interface{}) error {
 	b.mu.RUnlock()
 	if !ok {
 		// игнорируется или возвращается ошибка?
-		return nil // ЭТО Я ДОБАВИЛ
+		return ErrTopictNotFound // ЭТО Я ДОБАВИЛ
 	}
 	t.publish(msg)
 	return nil
