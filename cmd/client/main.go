@@ -6,6 +6,7 @@ import (
 
 	pb "github.com/Leegeev/vk_testovoe/pkg/api"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -18,7 +19,7 @@ func main() {
 	flag.Parse()
 
 	// 1) подключаемся к серверу
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Dial error: %v", err)
 	}
