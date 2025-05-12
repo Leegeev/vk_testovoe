@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/Leegeev/vk_testovoe/pkg/api;api";
+option go_package = "github.com/Leegeev/vk_testovoe/pkg";
 
 import "google/protobuf/empty.proto";
 

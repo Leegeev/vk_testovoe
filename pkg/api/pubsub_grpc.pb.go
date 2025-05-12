@@ -4,7 +4,7 @@
 // - protoc             v5.29.3
 // source: api/pubsub.proto
 
-package api
+package pkg
 
 import (
 	context "context"

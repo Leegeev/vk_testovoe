@@ -4,7 +4,7 @@
 // 	protoc        v5.29.3
 // source: api/pubsub.proto
 
-package api
+package pkg
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -176,7 +176,7 @@ const file_api_pubsub_proto_rawDesc = "" +
 	"\x04data\x18\x01 \x01(\tR\x04data2f\n" +
 	"\x06PubSub\x12(\n" +
 	"\tSubscribe\x12\x11.SubscribeRequest\x1a\x06.Event0\x01\x122\n" +
-	"\aPublish\x12\x0f.PublishRequest\x1a\x16.google.protobuf.EmptyB,Z*github.com/Leegeev/vk_testovoe/pkg/api;apib\x06proto3"
+	"\aPublish\x12\x0f.PublishRequest\x1a\x16.google.protobuf.EmptyB$Z\"github.com/Leegeev/vk_testovoe/pkgb\x06proto3"
 
 var (
 	file_api_pubsub_proto_rawDescOnce sync.Once

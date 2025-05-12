@@ -7,7 +7,7 @@ import (
 	"log"
 
 	pb "github.com/Leegeev/vk_testovoe/pkg/api"
-	"google.golang.org/grpc"
+	_ "google.golang.org/grpc"
 )
 
 // runPublish публикует одно сообщение и возвращается.
