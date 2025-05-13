@@ -9,6 +9,8 @@ import (
 	"syscall"
 
 	pb "github.com/Leegeev/vk_testovoe/pkg/api"
+	"github.com/Leegeev/vk_testovoe/pkg/config"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -23,14 +25,18 @@ var (
 
 func main() {
 	flag.Parse()
+	if err := config.InitConfig(); err != nil {
+		log.Fatalf("Error occured while initializing configs %s", err.Error())
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
+	addr := viper.GetString("server.listen_addr")
 	// 1) подключаемся к серверу
-	conn, err := grpc.NewClient("localhost:50051",
+	conn, err := grpc.NewClient("localhost"+addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal(status.Errorf(

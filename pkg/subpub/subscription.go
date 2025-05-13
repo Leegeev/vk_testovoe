@@ -1,8 +1,10 @@
 package subpub
 
-import "sync"
+import (
+	"sync"
 
-const defaultSubQueue = 64
+	"github.com/spf13/viper"
+)
 
 // subscription реализует Subscription.
 type subscription struct {
@@ -15,9 +17,10 @@ type subscription struct {
 }
 
 func newSubscription(cb MessageHandler) *subscription {
+	bufSize := viper.GetInt("bus.subscriber_queue_size")
 	s := &subscription{
 		user:  cb,
-		queue: make(chan interface{}, defaultSubQueue),
+		queue: make(chan interface{}, bufSize),
 		unsub: make(chan struct{}),
 	}
 	// горутина-обработчик

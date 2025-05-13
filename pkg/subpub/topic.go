@@ -2,9 +2,9 @@ package subpub
 
 import (
 	"sync"
-)
 
-const defaultTopicBuf = 128
+	"github.com/spf13/viper"
+)
 
 // topic представляет одну очередь FIFO и набор подписчиков.
 type topic struct {
@@ -19,9 +19,10 @@ type topic struct {
 }
 
 func newTopic(name string, wg *sync.WaitGroup) *topic {
+	bufSize := viper.GetInt("bus.topic_buffer_size")
 	return &topic{
 		name:   name,
-		inbox:  make(chan interface{}, defaultTopicBuf),
+		inbox:  make(chan interface{}, bufSize),
 		subs:   make(map[uint64]*subscription),
 		nextID: 1,
 		wg:     wg,

@@ -6,23 +6,31 @@ import (
 	"net"
 	"os"
 	"os/signal"
+
 	// "syscall"
 	"time"
 
 	pb "github.com/Leegeev/vk_testovoe/pkg/api"
+	"github.com/Leegeev/vk_testovoe/pkg/config"
 	"github.com/Leegeev/vk_testovoe/pkg/subpub"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func main() {
+	if err := config.InitConfig(); err != nil {
+		log.Fatalf("Error occured while initializing configs %s", err.Error())
+	}
+	addr := viper.GetString("server.listen_addr")
 	// 1) стартуем сервер
-	lis, err := net.Listen("tcp", ":50051")
+	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatal(status.Errorf(
 			codes.Unavailable,
-			"cannot listen on port 50051: %v",
+			"cannot listen on port %v: %v",
+			addr,
 			err,
 		))
 	}
@@ -50,14 +58,15 @@ func main() {
 		}
 	}()
 
-	log.Println("Server started on: 50051")
+	log.Println("Server started on: ", addr)
 
 	// 2) ждём сигнал на shutdown
 	<-ctx.Done()
 	log.Println("Shutdown signal received")
 
 	// 3) контекст с таймаутом
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	timeoutDuration := viper.GetInt("server.shutdown_timeout_s")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutDuration)*time.Second)
 	defer cancel()
 
 	// 4) шина событий
