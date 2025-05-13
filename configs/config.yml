@@ -6,11 +6,3 @@ server:
 bus:
   topic_buffer_size: 256
   subscriber_queue_size: 128
-
-# const defaultTopicBuf = 128
-# const defaultSubQueue = 64
-# server: lis, err := net.Listen("tcp", ":50051")
-# client: conn, err := grpc.NewClient("localhost:50051",
-
-# server.shutdown_timeout
-

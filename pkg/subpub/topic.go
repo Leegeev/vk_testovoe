@@ -64,11 +64,9 @@ func (t *topic) dispatch() {
 		}
 	}
 
-	// после закрытия inbox — закрываем все очереди
+	// после закрытия inbox — отписываем всех подписчиков
 	for _, sub := range t.subs {
 		sub.Unsubscribe()
-		// close(sub.queue)
-		// close(sub.unsub) // ЭТО Я ДОБАВИЛ
 	}
 }
 

@@ -38,7 +38,7 @@ func (b *broker) Subscribe(subject string, cb MessageHandler) (Subscription, err
 }
 
 // Publish публикует сообщение msg в тему subject.
-// Если шина закрыта — ErrClosed. Если темы нет — просто игнорируется.
+// Если шина закрыта — ErrClosed. Если темы нет — ErrTopictNotFound
 func (b *broker) Publish(subject string, msg interface{}) error {
 	b.mu.RLock()
 	if b.closed {
@@ -48,8 +48,7 @@ func (b *broker) Publish(subject string, msg interface{}) error {
 	t, ok := b.topics[subject]
 	b.mu.RUnlock()
 	if !ok {
-		// игнорируется или возвращается ошибка?
-		return ErrTopictNotFound // ЭТО Я ДОБАВИЛ
+		return ErrTopictNotFound
 	}
 	t.publish(msg)
 	return nil
@@ -79,7 +78,7 @@ func (b *broker) Close(ctx context.Context) error {
 	select {
 	case <-done:
 		return nil
-	case <-ctx.Done(): // надо ли тут же закрываться или лучше послать сигнал всем горутинам, чтобы они закрылись тут же..?
+	case <-ctx.Done():
 		return ctx.Err()
 	}
 }

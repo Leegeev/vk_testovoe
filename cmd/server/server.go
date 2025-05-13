@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-// grpcPubSubServer реализует auto-generated интерфейс pb.PubSubServer.
+// grpcPubSubServer реализует сгенерированный интерфейс pb.PubSubServer.
 type grpcPubSubServer struct {
 	pb.UnimplementedPubSubServer                 // встраиваем заглушки
 	bus                          subpub.SubPub   // наша реализация шины
@@ -31,15 +31,15 @@ func NewServer(bus subpub.SubPub, ctx context.Context) *grpcPubSubServer {
 // Publish — классический Unary RPC.
 func (s *grpcPubSubServer) Publish(ctx context.Context, req *pb.PublishRequest) (*emptypb.Empty, error) {
 	if err := s.bus.Publish(req.Key, req.Data); err != nil {
-		// 2) тема не найдена → NotFound
+		// 1) тема не найдена → NotFound
 		if errors.Is(err, subpub.ErrTopictNotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
-		// 3) шина уже закрыта → Unavailable
+		// 2) шина уже закрыта → Unavailable
 		if errors.Is(err, subpub.ErrClosed) {
 			return nil, status.Error(codes.Unavailable, err.Error())
 		}
-		// 4) всё остальное → Internal
+		// 3) всё остальное → Internal
 		return nil, status.Errorf(codes.Internal, "publish failed: %v", err)
 	}
 	log.Printf("Published \"%v\" in topic: %v", req.Data, req.Key)
@@ -68,7 +68,7 @@ func (s *grpcPubSubServer) Subscribe(req *pb.SubscribeRequest, stream pb.PubSub_
 		log.Printf("Client unsubscribed from topic %q", req.Key)
 	}()
 
-	// ждём, пока клиент не закроет stream.Context()
+	// ждём, пока клиент не закроет stream.Context() или сервер не закроется
 	log.Printf("New sub on topic: %v", req.Key)
 	select {
 	case <-stream.Context().Done():
