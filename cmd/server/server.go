@@ -61,7 +61,10 @@ func (s *grpcPubSubServer) Subscribe(req *pb.SubscribeRequest, stream pb.PubSub_
 		}
 		return status.Errorf(codes.Internal, "subscription failed: %v", err)
 	}
-	defer sub.Unsubscribe()
+	defer func() {
+		sub.Unsubscribe()
+		log.Printf("Client unsubscribed from topic %q", req.Key)
+	}()
 
 	// ждём, пока клиент не закроет stream.Context()
 	log.Printf("New sub on topic: %v", req.Key)

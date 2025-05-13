@@ -41,8 +41,8 @@ func runPublish(client pb.PubSubClient, key, msg string) {
 }
 
 // runSubscribe подписывается и непрерывно читает из стрима.
-func runSubscribe(client pb.PubSubClient, key string) {
-	stream, err := client.Subscribe(context.Background(), &pb.SubscribeRequest{Key: key})
+func runSubscribe(ctx context.Context, client pb.PubSubClient, key string) {
+	stream, err := client.Subscribe(ctx, &pb.SubscribeRequest{Key: key})
 	if err != nil {
 		st, ok := status.FromError(err)
 		if !ok {
@@ -57,6 +57,10 @@ func runSubscribe(client pb.PubSubClient, key string) {
 			log.Fatalf("Subscribe error [%s]: %s", st.Code(), st.Message())
 		}
 	}
+	defer func() {
+		// при выходе из функции мы уже отменили контекст в main
+		log.Println("Unsubscribing and closing stream")
+	}()
 	for {
 		evt, err := stream.Recv()
 		if err == io.EOF {
@@ -64,6 +68,10 @@ func runSubscribe(client pb.PubSubClient, key string) {
 			return
 		}
 		if err != nil {
+			if ctx.Err() != nil {
+				log.Println("subscription cancelled")
+				return
+			}
 			log.Fatalf("Recv error: %v", err)
 		}
 		fmt.Printf("<- event on %q: %q\n", key, evt.Data)

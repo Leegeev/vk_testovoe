@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	pb "github.com/Leegeev/vk_testovoe/pkg/api"
 	"google.golang.org/grpc"
@@ -20,8 +24,14 @@ var (
 func main() {
 	flag.Parse()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
 	// 1) подключаемся к серверу
-	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("localhost:50051",
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal(status.Errorf(
 			codes.Unavailable,
@@ -33,15 +43,24 @@ func main() {
 	client := pb.NewPubSubClient(conn)
 
 	// 2) решаем, что делаем
-	switch *mode {
-	case "pub":
-		runPublish(client, *key, *msg)
+	go func() {
+		switch *mode {
+		case "pub":
+			runPublish(client, *key, *msg)
+			cancel() // после публикации можно завершить
+		case "sub":
+			runSubscribe(ctx, client, *key)
+			cancel() // после отписки — тоже выйти из main
+		default:
+			log.Fatalf("неизвестный режим %q: используйте pub или sub", *mode)
+		}
+	}()
 
-	case "sub":
-		runSubscribe(client, *key)
-
-	default:
-		err := status.Errorf(codes.InvalidArgument, "неизвестный режим %q: используйте pub или sub", *mode)
-		log.Fatal(err)
+	select {
+	case <-stop:
+		log.Println("Signal received, shutting down…")
+		cancel()
+	case <-ctx.Done():
 	}
+	log.Println("Client exiting")
 }
