@@ -6,7 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"syscall"
+	// "syscall"
 	"time"
 
 	pb "github.com/Leegeev/vk_testovoe/pkg/api"
@@ -27,11 +27,15 @@ func main() {
 		))
 	}
 
+	// создаем контекст для отмены подписки
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	// DI: Dependency Injection
 	// 1. Создаём зависимости
 	bus := subpub.NewSubPub()
 	// 2. Внедряем в сервер
-	srv := NewServer(bus)
+	srv := NewServer(bus, ctx)
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterPubSubServer(grpcServer, srv)
@@ -49,25 +53,22 @@ func main() {
 	log.Println("Server started on: 50051")
 
 	// 2) ждём сигнал на shutdown
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
+	<-ctx.Done()
 	log.Println("Shutdown signal received")
 
 	// 3) контекст с таймаутом
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// 4) сначала gRPC graceful stop
-	grpcServer.GracefulStop()
-	log.Println("gRPC server stopped")
-
-	// 5) потом шина событий
+	// 4) шина событий
 	if err := srv.bus.Close(ctx); err != nil {
 		log.Printf("SubPub shutdown incomplete: %v", err)
 	} else {
 		log.Println("SubPub shutdown complete")
 	}
+	// 5) gRPC graceful stop
+	grpcServer.GracefulStop()
+	log.Println("gRPC server stopped")
 
 	log.Println("All done, exiting")
 }

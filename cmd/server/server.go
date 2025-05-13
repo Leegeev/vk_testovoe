@@ -15,14 +15,16 @@ import (
 
 // grpcPubSubServer реализует auto-generated интерфейс pb.PubSubServer.
 type grpcPubSubServer struct {
-	pb.UnimplementedPubSubServer               // встраиваем заглушки
-	bus                          subpub.SubPub // наша реализация шины
+	pb.UnimplementedPubSubServer                 // встраиваем заглушки
+	bus                          subpub.SubPub   // наша реализация шины
+	shutdownCtx                  context.Context // контекст для завершения
 }
 
 // NewServer создаёт и настраивает gRPC-сервис.
-func NewServer(bus subpub.SubPub) *grpcPubSubServer {
+func NewServer(bus subpub.SubPub, ctx context.Context) *grpcPubSubServer {
 	return &grpcPubSubServer{
-		bus: bus,
+		bus:         bus,
+		shutdownCtx: ctx,
 	}
 }
 
@@ -68,6 +70,11 @@ func (s *grpcPubSubServer) Subscribe(req *pb.SubscribeRequest, stream pb.PubSub_
 
 	// ждём, пока клиент не закроет stream.Context()
 	log.Printf("New sub on topic: %v", req.Key)
-	<-stream.Context().Done()
-	return stream.Context().Err()
+	select {
+	case <-stream.Context().Done():
+		return stream.Context().Err()
+	case <-s.shutdownCtx.Done():
+		// сервер собирается завершаться
+		return status.Error(codes.Canceled, "server shutting down")
+	}
 }
