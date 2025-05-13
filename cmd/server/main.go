@@ -10,6 +10,7 @@ import (
 	"time"
 
 	pb "github.com/Leegeev/vk_testovoe/pkg/api"
+	"github.com/Leegeev/vk_testovoe/pkg/subpub"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,8 +27,13 @@ func main() {
 		))
 	}
 
+	// DI: Dependency Injection
+	// 1. Создаём зависимости
+	bus := subpub.NewSubPub()
+	// 2. Внедряем в сервер
+	srv := NewServer(bus)
+
 	grpcServer := grpc.NewServer()
-	srv := NewServer()
 	pb.RegisterPubSubServer(grpcServer, srv)
 
 	go func() {

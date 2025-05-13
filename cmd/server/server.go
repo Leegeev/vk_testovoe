@@ -20,9 +20,9 @@ type grpcPubSubServer struct {
 }
 
 // NewServer создаёт и настраивает gRPC-сервис.
-func NewServer() *grpcPubSubServer {
+func NewServer(bus subpub.SubPub) *grpcPubSubServer {
 	return &grpcPubSubServer{
-		bus: subpub.NewSubPub(),
+		bus: bus,
 	}
 }
 
